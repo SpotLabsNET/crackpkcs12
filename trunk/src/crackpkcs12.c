@@ -186,6 +186,8 @@ void *work( void *ptr ) {
 			if (fgets ( line, sizeof line, file ) != NULL) {
 				if (line[strlen(line) - 1] == '\n')
 					line[strlen(line) - 1] = '\0';
+				if (strlen(line) > 0 && line[strlen(line) - 1] == '\r')
+					line[strlen(line) - 1] = '\0';		
 				if ( wthread->msginterval > 0 ) {
 					count++;
 					if (count % wthread->msginterval == 0)
