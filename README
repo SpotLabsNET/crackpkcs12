@@ -1,7 +1,7 @@
-crackpkcs12 is a program to crack PKCS12 files using
-a dictionary attack. It is a multi-threading program.
-User can choose the number of threads. By default,
-every CPU of the machine is used.
+crackpkcs12 is a multithreaded program to crack
+PKCS12 files using a dictionary attack. User can
+choose the number of threads. By default, every
+CPU of the machine is used.
 
 No dictionary file is provided.
 
