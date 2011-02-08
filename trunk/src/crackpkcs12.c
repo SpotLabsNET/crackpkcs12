@@ -77,7 +77,7 @@ int main(int argc, char** argv) {
 				msgintstring = optarg;
 				break;
 			case '?':
-				if (optopt == 't' || optopt == 'd') {
+				if (optopt == 't' || optopt == 'd' || optopt == 's') {
 					fprintf (stderr, "Option -%c requires an argument.\n", optopt);
 				}
 			default:
