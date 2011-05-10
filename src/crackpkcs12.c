@@ -36,12 +36,12 @@ typedef struct {
 
 void usage() {
 	printf(
-"\nUsage: crackpkcs12 -d <dictionary_file> [ -t <number_of_threads> ] [ -v ] [ -s <message_interval> ] ] <file_to_crack>\n"
+"\nUsage: crackpkcs12 -d <dictionary_file> [ [ -t <number_of_threads> ] [ -v ] [ -s <message_interval> ] ] <file_to_crack>\n"
 "\n"
 "  -d <dictionary_file>     Specify dictionary file path\n"
 "  -t <number_of_threads>   Specify number of threads (by default number of CPU's)\n"
 "  -v                       Verbose mode\n"
-"  -s <message_inteval>     Number of attemps between messages (implied -v)\n\n"
+"  -s <message_inteval>     Number of attemps between messages (implied -v) (default 10000)\n\n"
 	);
 	exit(100);
 }
@@ -52,8 +52,9 @@ int main(int argc, char** argv) {
 
 	if (argc < MINARGNUMBER) usage();
 
-	char *psw, *infile, *dict, *nt, *msgintstring, c, verbose;
-	int msginterval = DEFAULTMSGINTERVAL;    
+	char *psw, *infile, *dict, *nt, *msgintstring, verbose;
+	int c;
+    int msginterval = DEFAULTMSGINTERVAL;    
 	verbose = 0;
 	msgintstring = NULL;
 	nt = NULL;
