@@ -54,7 +54,7 @@ int main(int argc, char** argv) {
 
 	char *psw, *infile, *dict, *nt, *msgintstring, verbose;
 	int c;
-    int msginterval = DEFAULTMSGINTERVAL;    
+    int msginterval = DEFAULTMSGINTERVAL;
 	verbose = 0;
 	msgintstring = NULL;
 	nt = NULL;
@@ -115,8 +115,8 @@ int main(int argc, char** argv) {
 	
 	OpenSSL_add_all_algorithms();
 
-	pthread_t *thread = (pthread_t *) calloc(nthreads,sizeof(pthread_t));    
-	int *thread_ret = (int *) calloc(nthreads, sizeof(int));    
+	pthread_t *thread = (pthread_t *) calloc(nthreads,sizeof(pthread_t));
+	int *thread_ret = (int *) calloc(nthreads, sizeof(int));
 	worker *wthread = (worker *) calloc(nthreads,sizeof(worker));
 	pthread_mutex_t mutex;
 	pthread_mutexattr_t mutex_attr;
@@ -143,11 +143,11 @@ int main(int argc, char** argv) {
 }
 
 void *work( void *ptr ) {
-	// Opening p12 file    
+	// Opening p12 file
 	BIO* in = NULL;
 	worker *wthread = (worker *) ptr;
 
-	pthread_mutex_lock(wthread->m);    
+	pthread_mutex_lock(wthread->m);
 
 	in = BIO_new_file(wthread->file2crack, "rb");
 	if (!in) {
@@ -159,10 +159,10 @@ void *work( void *ptr ) {
 	PKCS12 *p12 = NULL;
 	if (!(p12 = d2i_PKCS12_bio (in, NULL))) {
 		perror("Unable to create PKCS12 object\n");
-		exit(30);        
+		exit(30);   
 	}
 
-	pthread_mutex_unlock(wthread->m);    
+	pthread_mutex_unlock(wthread->m);
 
 	// Opening dictionary file
 	FILE *file = fopen(wthread->dict_path,"r");
@@ -177,25 +177,25 @@ void *work( void *ptr ) {
 	int count = 0;
 	int i = 0;
 
-	// Read first lines    
+	// Read first lines
 	for (i=0; i<wthread->id && stop==0; i++)
 		if (fgets ( line, sizeof line, file ) == NULL) stop=1;
 
 	// Work
 	if (stop == 0) {
-		while (1) {    
+		while (1) {
 			if (fgets ( line, sizeof line, file ) != NULL) {
 				if (line[strlen(line) - 1] == '\n')
 					line[strlen(line) - 1] = '\0';
 				if (strlen(line) > 0 && line[strlen(line) - 1] == '\r')
-					line[strlen(line) - 1] = '\0';		
+					line[strlen(line) - 1] = '\0';
 				if ( wthread->msginterval > 0 ) {
 					count++;
 					if (count % wthread->msginterval == 0)
 						printf("Thread %d - Attemp %d (%s)\n",wthread->id+1,count,line);
 				}
 				if (PKCS12_verify_mac(p12, line, -1)) {
-					found = 1;            
+					found = 1;       
 					break;
 				}
 			} else
@@ -209,9 +209,9 @@ void *work( void *ptr ) {
 	}
 
 	if (found) {
-		if (wthread->msginterval > 0) printf("\n********************************************\n");        
+		if (wthread->msginterval > 0) printf("\n********************************************\n");   
 		printf("Thread %d - Password found: %s\n",wthread->id+1,line);
-		if (wthread->msginterval > 0) printf("********************************************\n\n");       
+		if (wthread->msginterval > 0) printf("********************************************\n\n");  
 		exit(0);
 	} else if (wthread->msginterval > 0)
 		printf("Thread %d - Exhausted search (%d attemps)\n",wthread->id+1,count);
