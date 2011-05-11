@@ -27,7 +27,7 @@
 typedef struct {
 	int id;
 	int num_threads;
-	char *dict_path;
+	FILE* dictfile;
 	char *file2crack;
 	pthread_mutex_t *m;
 	pthread_mutexattr_t *m_attr;
@@ -121,11 +121,20 @@ int main(int argc, char** argv) {
 	pthread_mutex_t mutex;
 	pthread_mutexattr_t mutex_attr;
 	pthread_mutex_init(&mutex,&mutex_attr);
+
+
+	// Opening dictionary file
+	FILE *dictfile = fopen(dict,"r");
+	if (!dictfile) {
+		fprintf(stderr,"Dictionary file not found: %s\n",dict);
+		exit(20);
+	}
+
 	int i;
 	for (i=0; i<nthreads; i++) {
 		wthread[i].id = i;
 		wthread[i].num_threads = nthreads;
-		wthread[i].dict_path = dict;
+		wthread[i].dictfile = dictfile;
 		wthread[i].file2crack = infile;
 		wthread[i].m = &mutex;
 		wthread[i].m_attr = &mutex_attr;
@@ -164,48 +173,27 @@ void *work( void *ptr ) {
 
 	pthread_mutex_unlock(wthread->m);
 
-	// Opening dictionary file
-	FILE *file = fopen(wthread->dict_path,"r");
-	if (!file) {
-		fprintf(stderr,"Dictionary file not found: %s\n",wthread->dict_path);
-		exit(20);
-	}
-
 	char line[256];
 	char found = 0;
 	char stop = 0;
 	int count = 0;
 	int i = 0;
-
-	// Read first lines
-	for (i=0; i<wthread->id && stop==0; i++)
-		if (fgets ( line, sizeof line, file ) == NULL) stop=1;
+    char *p;
+    long long gcount = 0;
 
 	// Work
-	if (stop == 0) {
-		while (1) {
-			if (fgets ( line, sizeof line, file ) != NULL) {
-				if (line[strlen(line) - 1] == '\n')
-					line[strlen(line) - 1] = '\0';
-				if (strlen(line) > 0 && line[strlen(line) - 1] == '\r')
-					line[strlen(line) - 1] = '\0';
-				if ( wthread->msginterval > 0 ) {
-					count++;
-					if (count % wthread->msginterval == 0)
-						printf("Thread %d - Attemp %d (%s)\n",wthread->id+1,count,line);
-				}
-				if (PKCS12_verify_mac(p12, line, -1)) {
-					found = 1;       
-					break;
-				}
-			} else
-				break;
-			for (i=0; i<wthread->num_threads-1 && stop==0; i++)
-				if (fgets ( line, sizeof line, file ) == NULL)
-					stop=1;
-			if (stop == 1)
-				break;
+	while (!found && fgets(line, sizeof line,wthread->dictfile) != NULL) {
+        p = line + strlen(line) - 1;
+        if (*p == '\n') *p = '\0';
+        if ((p != line) && (*--p == '\r')) *p = '\0';
+		if ( wthread->msginterval > 0 ) {
+			if (--count <= 0) {
+				printf("Thread %d - Attemp %ld (%s)\n",wthread->id+1,gcount+=wthread->msginterval,line);
+				count = wthread->msginterval;
+            }
 		}
+		if (PKCS12_verify_mac(p12, line, -1))
+			found = 1;       
 	}
 
 	if (found) {
@@ -214,7 +202,7 @@ void *work( void *ptr ) {
 		if (wthread->msginterval > 0) printf("********************************************\n\n");  
 		exit(0);
 	} else if (wthread->msginterval > 0)
-		printf("Thread %d - Exhausted search (%d attemps)\n",wthread->id+1,count);
+		printf("Thread %d - Exhausted search (%d attemps)\n",wthread->id+1,gcount);
 
 	pthread_exit(0);
 }
