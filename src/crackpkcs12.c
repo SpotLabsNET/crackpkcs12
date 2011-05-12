@@ -54,7 +54,7 @@ int main(int argc, char** argv) {
 
 	char *psw, *infile, *dict, *nt, *msgintstring, verbose;
 	int c;
-    int msginterval = DEFAULTMSGINTERVAL;
+	int msginterval = DEFAULTMSGINTERVAL;
 	verbose = 0;
 	msgintstring = NULL;
 	nt = NULL;
@@ -178,23 +178,23 @@ void *work( void *ptr ) {
 	char stop = 0;
 	int count = 0;
 	int i = 0;
-    char *p;
-    long long gcount = wthread->msginterval-1;
+	char *p;
+	long long gcount = wthread->msginterval-1;
 
 	// Work
 	while (!found && fgets(line, sizeof line,wthread->dictfile) != NULL) {
-        p = line + strlen(line) - 1;
-        if (*p == '\n') *p = '\0';
-        if ((p != line) && (*--p == '\r')) *p = '\0';
+		p = line + strlen(line) - 1;
+		if (*p == '\n') *p = '\0';
+		if ((p != line) && (*--p == '\r')) *p = '\0';
 		gcount++;
 		if ( wthread->msginterval > 0 ) {
 			if (--count <= 0) {
 				printf("Thread %d - Attemp %lld (%s)\n",wthread->id+1,gcount,line);
 				count = wthread->msginterval;
-            }
+			}
 		}
 		if (PKCS12_verify_mac(p12, line, -1))
-			found = 1;       
+			found = 1;	   
 	}
 
 	if (found) {
