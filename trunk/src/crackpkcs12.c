@@ -179,16 +179,17 @@ void *work( void *ptr ) {
 	int count = 0;
 	int i = 0;
     char *p;
-    long long gcount = 0;
+    long long gcount = wthread->msginterval-1;
 
 	// Work
 	while (!found && fgets(line, sizeof line,wthread->dictfile) != NULL) {
         p = line + strlen(line) - 1;
         if (*p == '\n') *p = '\0';
         if ((p != line) && (*--p == '\r')) *p = '\0';
+		gcount++;
 		if ( wthread->msginterval > 0 ) {
 			if (--count <= 0) {
-				printf("Thread %d - Attemp %ld (%s)\n",wthread->id+1,gcount+=wthread->msginterval,line);
+				printf("Thread %d - Attemp %lld (%s)\n",wthread->id+1,gcount,line);
 				count = wthread->msginterval;
             }
 		}
@@ -202,7 +203,7 @@ void *work( void *ptr ) {
 		if (wthread->msginterval > 0) printf("********************************************\n\n");  
 		exit(0);
 	} else if (wthread->msginterval > 0)
-		printf("Thread %d - Exhausted search (%d attemps)\n",wthread->id+1,gcount);
+		printf("Thread %d - Exhausted search (%lld attemps)\n",wthread->id+1,gcount);
 
 	pthread_exit(0);
 }
