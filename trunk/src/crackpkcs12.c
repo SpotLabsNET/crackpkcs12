@@ -65,7 +65,7 @@ void usage() {
 "  -d <dictionary_file>     Use dictionary attack and specify dictionary file path\n\n"
 "  -t <number_of_threads>   Specify number of threads (by default number of CPU's)\n\n"
 "  -v                       Verbose mode\n\n"
-"  -s <message_inteval>     Number of attemps between messages (implied -v) (default 10000)\n\n"
+"  -s <message_inteval>     Number of attemps between messages (implied -v) (default 100000)\n\n"
 	);
 	exit(100);
 }
