@@ -353,13 +353,17 @@ void *work_brute( void *ptr ) {
 
 	pthread_mutex_unlock(wthread->m);
 
+	int maxwordlength = wthread->wordlength;
 	int i;
 	long long gcount = 0;
-	for (i=wthread->id; i<wthread->baselength; i+=wthread->num_threads) {
-		wthread->word[0] = wthread->base[i];
-		try(wthread, p12, &gcount);
-		if (wthread->wordlength>1)
-			generate(wthread, 1, p12, &gcount);
+	for (wthread->wordlength=1; wthread->wordlength <= maxwordlength; wthread->wordlength++) {
+		for (i=wthread->id; i<wthread->baselength; i+=wthread->num_threads) {
+			wthread->word[0] = wthread->base[i];
+			if (wthread->wordlength>1)
+				generate(wthread, 1, p12, &gcount);
+			else
+				try(wthread,p12,&gcount);
+		}
 	}
 }
 
@@ -368,11 +372,12 @@ void generate(workerbrute *wthread, int pivot, PKCS12 *p12, long long *gcount) {
 
 	for (i=0; i<wthread->baselength; i++) {
 		wthread->word[pivot] = wthread->base[i];
-		try(wthread, p12, gcount);
 		if (pivot < wthread->wordlength-1)
 			generate(wthread, pivot+1, p12, gcount);
-		wthread->word[pivot] = '\0';
+		else
+			try(wthread,p12,gcount);
 	}
+	wthread->word[pivot] = '\0';
 }
 
 void try(workerbrute *wthread, PKCS12 *p12, long long *gcount) {
