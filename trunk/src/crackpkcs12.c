@@ -321,9 +321,9 @@ void *work_dict( void *ptr ) {
 	}
 
 	if (found) {
-		if (wthread->msginterval > 0) printf("\n********************************************\n");
+		printf("*********************************************************\n");
 		printf("Dictionary attack - Thread %d - Password found: %s\n",wthread->id+1,line);
-		if (wthread->msginterval > 0) printf("********************************************\n\n");
+		printf("*********************************************************\n\n");
 		exit(0);
 	} else if (wthread->msginterval > 0)
 		printf("Dictionary attack - Thread %d - Exhausted search (%lld attemps)\n",wthread->id+1,gcount);
@@ -357,6 +357,7 @@ void *work_brute( void *ptr ) {
 	int i;
 	long long gcount = 0;
 	for (wthread->wordlength=1; wthread->wordlength <= maxwordlength; wthread->wordlength++) {
+		printf("Brute force attack - Thread %d - Starting with %d characters passwords\n",wthread->id+1,wthread->wordlength);
 		for (i=wthread->id; i<wthread->baselength; i+=wthread->num_threads) {
 			wthread->word[0] = wthread->base[i];
 			if (wthread->wordlength>1)
@@ -388,9 +389,9 @@ void try(workerbrute *wthread, PKCS12 *p12, long long *gcount) {
 		}
 	}
 	if (PKCS12_verify_mac(p12, wthread->word, -1)) {
-		if (wthread->msginterval > 0) printf("\n******************************************************\n");
+		printf("**********************************************************\n");
 		printf("Brute force attack - Thread %d - Password found: %s\n",wthread->id+1,wthread->word);
-		if (wthread->msginterval > 0) printf("******************************************************\n\n");
+		printf("**********************************************************\n\n");
 		exit(0);
 	}
 }
