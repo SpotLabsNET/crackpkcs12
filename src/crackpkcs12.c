@@ -56,7 +56,7 @@ void usage() {
 "\nUsage:\n\ncrackpkcs12 { -d <dictionary_file> |  -b <max_psw_length> [ -c <base_char_sets> ] } [ -t <num_of_threads> ] [ -v ] [ -s <message_interval> ] <file_to_crack>\n"
 "\n"
 "  -b <max_password_length> Use brute force attack and specify maximum length of password\n\n"
-"  -c <base_char_sets>      Specify characters sets (one or more than one) and order to conform passwords\n"
+"  -c <base_char_sets>      Specify characters sets (one or more than one) and order to conform passwords (requires -b)\n"
 "                           a = letters (abcdefghijklmnopqrstuvwxyz)\n"
 "                           A = capital letters (ABCDEFGHIJKLMNOPQRSTUVWXYZ)\n"
 "                           n = digits (0123456789)\n"
@@ -95,15 +95,15 @@ int main(int argc, char** argv) {
 	while ((c = getopt (argc, argv, "t:d:vb:c:s:")) != -1)
 		switch (c) {
 			case 'b':
-	            isbrute = 1;
-	            swl = optarg;				
+				isbrute = 1;
+				swl = optarg;				
 				break;
 			case 'c':
-	            scs = optarg;				
+				scs = optarg;				
 				break;
 			case 'd':
-	            isdict = 1;				
-	            dict = optarg;
+				isdict = 1;
+				dict = optarg;
 				break;
 			case 't':
 				nt = optarg;
@@ -196,20 +196,21 @@ int main(int argc, char** argv) {
 		workerdict *wthread = (workerdict *) calloc(nthreads,sizeof(workerdict));
 	
 		printf("\nDictionary attack - Starting %d threads\n\n",nthreads);
-	
-	    for (i=0; i<nthreads; i++) {
-	        wthread[i].id = i;
-	        wthread[i].num_threads = nthreads;
-	        wthread[i].m = &mutex;
-	        wthread[i].m_attr = &mutex_attr;
-	        wthread[i].dictfile = dictfile;
-	        wthread[i].file2crack = infile;
-	        if (verbose == 1) wthread[i].msginterval = msginterval;
-	        thread_ret[i] = pthread_create( &thread[i], NULL, work_dict, (void*) &wthread[i]);
-	    }
+
+		for (i=0; i<nthreads; i++) {
+			wthread[i].id = i;
+			wthread[i].num_threads = nthreads;
+			wthread[i].m = &mutex;
+			wthread[i].m_attr = &mutex_attr;
+			wthread[i].dictfile = dictfile;
+			wthread[i].file2crack = infile;
+			if (verbose == 1) wthread[i].msginterval = msginterval;
+			thread_ret[i] = pthread_create( &thread[i], NULL, work_dict, (void*) &wthread[i]);
+		}
 		for (i=0; i<nthreads; i++)
 			pthread_join(thread[i], NULL);
-		printf("\nDictionary attack - Exhausted search\n");
+			printf("\nDictionary attack - Exhausted search\n");
+		}
 	}
 	
 	if (isbrute) {
@@ -217,22 +218,23 @@ int main(int argc, char** argv) {
 
 		printf("\nBrute force attack - Starting %d threads\n\n",nthreads);
 	
-	    for (i=0; i<nthreads; i++) {
-	        wthread[i].id = i;
-	        wthread[i].num_threads = nthreads;
-	        wthread[i].wordlength = wordlength;
-	        wthread[i].word = (char *) calloc(wordlength, sizeof(char));
-	        wthread[i].base = base;
-	        wthread[i].baselength = strlen(base);
-	        wthread[i].m = &mutex;
-	        wthread[i].m_attr = &mutex_attr;
-	        wthread[i].file2crack = infile;
-	        if (verbose == 1) wthread[i].msginterval = msginterval;
-	        thread_ret[i] = pthread_create( &thread[i], NULL, work_brute, (void*) &wthread[i]);
-	    }
+		for (i=0; i<nthreads; i++) {
+			wthread[i].id = i;
+			wthread[i].num_threads = nthreads;
+			wthread[i].wordlength = wordlength;
+			wthread[i].word = (char *) calloc(wordlength, sizeof(char));
+			wthread[i].base = base;
+			wthread[i].baselength = strlen(base);
+			wthread[i].m = &mutex;
+			wthread[i].m_attr = &mutex_attr;
+			wthread[i].file2crack = infile;
+			if (verbose == 1) wthread[i].msginterval = msginterval;
+			thread_ret[i] = pthread_create( &thread[i], NULL, work_brute, (void*) &wthread[i]);
+		}
 		for (i=0; i<nthreads; i++)
 			pthread_join(thread[i], NULL);
-			printf("\nBrute force attack - Exhausted search\n");
+
+		printf("\nBrute force attack - Exhausted search\n");
 	}
 
 	printf("\nNo password found\n\n");
@@ -246,19 +248,31 @@ char* getbase(char *scs) {
 	char special[PARTIALBASESIZE] = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~";
 	char capital[PARTIALBASESIZE] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 	char numeric[PARTIALBASESIZE] = "0123456789";
-	
+	char isa = 0;
+	char isA = 0;
+	char isn = 0;
+	char iss = 0;
+
 	char *base = (char *)calloc(MAXBASESIZE,sizeof(char));
 
 	int i;
 	for (i=0; i<strlen(scs); i++) {
-		if (scs[i] == 'a')
+		if (scs[i] == 'a' && isa == 0) {
 			strncat(base,alpha,PARTIALBASESIZE);
-		else if (scs[i] == 'A')
+			isa = 1;
+		}
+		else if (scs[i] == 'A' && isA == 0) {
 			strncat(base,capital,PARTIALBASESIZE);
-		else if (scs[i] == 'n')
+			isA = 1;
+		}
+		else if (scs[i] == 'n' && isn == 0) {
 			strncat(base,numeric,PARTIALBASESIZE);
-		else if (scs[i] == 's')
+			isn = 1;
+		}
+		else if (scs[i] == 's' && iss == 0) {
 			strncat(base,special,PARTIALBASESIZE);
+			iss = 1;
+		}
 		else if (scs[i] == 'x') {
 			bzero(base,MAXBASESIZE * sizeof(char));
 			strncat(base,alpha,PARTIALBASESIZE);
