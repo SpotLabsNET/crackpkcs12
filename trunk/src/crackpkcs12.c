@@ -207,7 +207,7 @@ int main(int argc, char** argv) {
 			if (verbose == 1) wthread[i].msginterval = msginterval;
 			thread_ret[i] = pthread_create( &thread[i], NULL, work_dict, (void*) &wthread[i]);
 		}
-		for (i=0; i<nthreads; i++)
+		for (i=0; i<nthreads; i++) {
 			pthread_join(thread[i], NULL);
 			printf("\nDictionary attack - Exhausted search\n");
 		}
