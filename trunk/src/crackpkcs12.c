@@ -83,13 +83,17 @@ int main(int argc, char** argv) {
 	int msginterval = DEFAULTMSGINTERVAL;
 	int wordlength = 0;
 	verbose = 0;
+	psw = NULL;
+	infile = NULL;
+	dict = NULL;
+	nt = NULL;
 	msgintstring = NULL;
 	scs = NULL;
 	nt = NULL;
 	isdict = 0;
 	isbrute = 0;
-	dict = NULL;
-	infile = NULL;
+	swl = NULL;
+	base = NULL;
 	int nthreads = sysconf (_SC_NPROCESSORS_ONLN);
 
 	while ((c = getopt (argc, argv, "t:d:vb:c:s:")) != -1)
