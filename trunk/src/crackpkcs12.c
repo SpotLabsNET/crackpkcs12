@@ -317,7 +317,7 @@ void *work_dict( void *ptr ) {
 	char line[256];
 	char found = 0;
 	char stop = 0;
-	int count = 0;
+	int count = wthread->msginterval;
 	int i = 0;
 	char *p;
 	long long gcount = wthread->msginterval-1;
