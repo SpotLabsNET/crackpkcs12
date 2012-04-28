@@ -22,7 +22,9 @@
 #include <openssl/pkcs12.h>
 
 #define DEFAULTMSGINTERVAL 100000
-#define DEFAULTWORDLENGTH 6
+#define DEFAULTMINWORDLENGTH 1
+#define DEFAULTMAXWORDLENGTH 8
+#define MINWORDLENGTH 1
 #define MAXWORDLENGTH 2048
 #define MINARGNUMBER 4
 #define PARTIALBASESIZE 256
@@ -43,6 +45,7 @@ typedef struct {
 	int num_threads;
 	char *base;
 	int baselength;
+	int wordlength_min;
 	int wordlength;
 	char *word;
 	char *file2crack;
@@ -53,9 +56,11 @@ typedef struct {
 
 void usage() {
 	printf(
-"\nUsage:\n\ncrackpkcs12 { -d <dictionary_file> |  -b <max_psw_length> [ -c <base_char_sets> ] } [ -t <num_of_threads> ] [ -v ] [ -s <message_interval> ] <file_to_crack>\n"
+"\nUsage:\n\ncrackpkcs12 { -d <dictionary_file> |  [ -m <min_psw_length> ] -b <max_psw_length> [ -c <base_char_sets> ] } [ -t <num_of_threads> ] [ -v ] [ -s <message_interval> ] <file_to_crack>\n"
 "\n"
-"  -b <max_password_length> Use brute force attack and specify maximum length of password\n\n"
+"  -b                       Use brute force attack\n\n"
+"  -m <min_password_length> Specifies minimum length of password (implies -b)\n\n"
+"  -M <max_password_length> Specifies minimum length of password (implies -b)\n\n"
 "  -c <base_char_sets>      Specify characters sets (one or more than one) and order to conform passwords (requires -b)\n"
 "                           a = letters (abcdefghijklmnopqrstuvwxyz)\n"
 "                           A = capital letters (ABCDEFGHIJKLMNOPQRSTUVWXYZ)\n"
@@ -78,10 +83,11 @@ void try(workerbrute *wthread, PKCS12 *p12, long long *gcount);
 
 int main(int argc, char** argv) {
 
-	char *psw, *infile, *dict, *nt, *msgintstring, verbose, isdict, isbrute, *swl, *scs, *base;
+	char *psw, *infile, *dict, *nt, *msgintstring, verbose, isdict, isbrute, *swl_min, *swl_max, *scs, *base;
 	int c;
 	int msginterval = DEFAULTMSGINTERVAL;
-	int wordlength = 0;
+	int wordlength_min = MINWORDLENGTH;
+	int wordlength_max = 0;
 	verbose = 0;
 	psw = NULL;
 	infile = NULL;
@@ -92,15 +98,23 @@ int main(int argc, char** argv) {
 	nt = NULL;
 	isdict = 0;
 	isbrute = 0;
-	swl = NULL;
+	swl_min = NULL;
+	swl_max = NULL;
 	base = NULL;
 	int nthreads = sysconf (_SC_NPROCESSORS_ONLN);
 
-	while ((c = getopt (argc, argv, "t:d:vb:c:s:")) != -1)
+	while ((c = getopt (argc, argv, "t:d:vbm:M:c:s:")) != -1)
 		switch (c) {
 			case 'b':
 				isbrute = 1;
-				swl = optarg;				
+				break;
+			case 'M':
+				isbrute = 1;
+				swl_max = optarg;				
+				break;
+			case 'm':
+				isbrute = 1;
+				swl_min = optarg;				
 				break;
 			case 'c':
 				scs = optarg;				
@@ -150,17 +164,40 @@ int main(int argc, char** argv) {
 	else if (verbose == 1)
 		msginterval = DEFAULTMSGINTERVAL;
 
-	if (swl != NULL) {
-		wordlength = strtol(swl, NULL, 10);
+	if (swl_min != NULL) {
+		wordlength_min = strtol(swl_min, NULL, 10);
 		if (errno == EINVAL)
 			usage();
-		if (wordlength > MAXWORDLENGTH) {
-			wordlength = MAXWORDLENGTH;
-			printf("\nForcing max word length to %d\n\n",wordlength);
+		if (wordlength_min < MINWORDLENGTH) {
+			wordlength_min = MINWORDLENGTH;
+			printf("\nForcing min word length to %d\n\n",wordlength_min);
 		}
 	}
 	else
-	    wordlength = DEFAULTWORDLENGTH;
+	    wordlength_min = DEFAULTMINWORDLENGTH;
+
+	if (swl_max != NULL) {
+		wordlength_max = strtol(swl_max, NULL, 10);
+		if (errno == EINVAL)
+			usage();
+		if (wordlength_max > MAXWORDLENGTH) {
+			wordlength_max = MAXWORDLENGTH;
+			printf("\nForcing max word length to %d\n\n",wordlength_max);
+		}
+	}
+	else
+	    wordlength_max = DEFAULTMAXWORDLENGTH;
+
+	if (wordlength_min > wordlength_max) {
+		if (swl_min != NULL && swl_max != NULL) {
+			fprintf(stderr,"Error: Min length is greater than max length\n\n");
+			usage();
+		}
+		else if (swl_min != NULL && swl_max == NULL)
+			wordlength_max = wordlength_min;
+		else if (swl_min == NULL && swl_max != NULL)
+			wordlength_min = wordlength_max;
+	}
 
 	if (isbrute) {
 		if (scs == NULL)
@@ -225,8 +262,9 @@ int main(int argc, char** argv) {
 		for (i=0; i<nthreads; i++) {
 			wthread[i].id = i;
 			wthread[i].num_threads = nthreads;
-			wthread[i].wordlength = wordlength;
-			wthread[i].word = (char *) calloc(wordlength, sizeof(char));
+			wthread[i].wordlength_min = wordlength_min;
+			wthread[i].wordlength = wordlength_max;
+			wthread[i].word = (char *) calloc(wordlength_max, sizeof(char));
 			wthread[i].base = base;
 			wthread[i].baselength = strlen(base);
 			wthread[i].m = &mutex;
@@ -374,7 +412,7 @@ void *work_brute( void *ptr ) {
 	int maxwordlength = wthread->wordlength;
 	int i;
 	long long gcount = 0;
-	for (wthread->wordlength=1; wthread->wordlength <= maxwordlength; wthread->wordlength++) {
+	for (wthread->wordlength=wthread->wordlength_min; wthread->wordlength <= maxwordlength; wthread->wordlength++) {
 		printf("Brute force attack - Thread %d - Starting with %d characters passwords\n",wthread->id+1,wthread->wordlength);
 		for (i=wthread->id; i<wthread->baselength; i+=wthread->num_threads) {
 			wthread->word[0] = wthread->base[i];
