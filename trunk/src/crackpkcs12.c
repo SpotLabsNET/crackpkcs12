@@ -56,19 +56,19 @@ typedef struct {
 
 void usage() {
 	printf(
-"\nUsage:\n\ncrackpkcs12 { -d <dictionary_file> |  [ -m <min_psw_length> ] -b <max_psw_length> [ -c <base_char_sets> ] } [ -t <num_of_threads> ] [ -v ] [ -s <message_interval> ] <file_to_crack>\n"
+"\nUsage:\n\ncrackpkcs12 { -d <dictionary_file> |  -b [ -m <min_psw_length> ] [ -M <max_psw_length> ] [ -c <base_char_sets> ] } [ -t <num_of_threads> ] [ -v ] [ -s <message_interval> ] <file_to_crack>\n"
 "\n"
-"  -b                       Use brute force attack\n\n"
+"  -b                       Uses brute force attack\n\n"
 "  -m <min_password_length> Specifies minimum length of password (implies -b)\n\n"
 "  -M <max_password_length> Specifies minimum length of password (implies -b)\n\n"
-"  -c <base_char_sets>      Specify characters sets (one or more than one) and order to conform passwords (requires -b)\n"
+"  -c <base_char_sets>      Specifies characters sets (one or more than one) and order to conform passwords (requires -b, -m or -M)\n"
 "                           a = letters (abcdefghijklmnopqrstuvwxyz)\n"
 "                           A = capital letters (ABCDEFGHIJKLMNOPQRSTUVWXYZ)\n"
 "                           n = digits (0123456789)\n"
 "                           s = special characters (!\"#$%%&'()*+,-./:;<=>?@[\\]^_`{|}~)\n"
 "                           x = all previous sets\n\n"
-"  -d <dictionary_file>     Use dictionary attack and specify dictionary file path\n\n"
-"  -t <number_of_threads>   Specify number of threads (by default number of CPU's)\n\n"
+"  -d <dictionary_file>     Uses dictionary attack and specify dictionary file path\n\n"
+"  -t <number_of_threads>   Specifies number of threads (by default number of CPU's)\n\n"
 "  -v                       Verbose mode\n\n"
 "  -s <message_inteval>     Number of attemps between messages (implied -v) (default 100000)\n\n"
 	);
@@ -257,7 +257,8 @@ int main(int argc, char** argv) {
 	if (isbrute) {
 		workerbrute *wthread = (workerbrute *) calloc(nthreads,sizeof(workerbrute));
 
-		printf("\nBrute force attack - Starting %d threads\n\n",nthreads);
+		printf("\nBrute force attack - Starting %d threads\n",nthreads);
+		printf("\nMin length: %d\nMax length: %d\nUse -m and -M flags to modify these values.\n\n", wordlength_min, wordlength_max);
 	
 		for (i=0; i<nthreads; i++) {
 			wthread[i].id = i;
