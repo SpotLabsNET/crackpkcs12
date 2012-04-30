@@ -9,3 +9,5 @@ AM_INIT_AUTOMAKE($PACKAGE, $VERSION, $EMAIL)
 AC_PROG_CC
 
 AC_OUTPUT(Makefile src/Makefile)
+
+PKG_CHECK_MODULES([DEPS], [libssl])
