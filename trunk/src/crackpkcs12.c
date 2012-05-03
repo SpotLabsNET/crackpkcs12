@@ -1,5 +1,5 @@
 /* crackpkcs12 is a multithreaded program to crack PKCS12 files
-*  Copyright (C) 2012 Alfredo Esteban de la Torre
+*  Copyright (C) 2011, 2012 Alfredo Esteban de la Torre
 *
 *  This program is free software: you can redistribute it and/or modify
 *  it under the terms of the GNU General Public License as published by
