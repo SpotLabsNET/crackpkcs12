@@ -258,7 +258,11 @@ int main(int argc, char** argv) {
 		workerbrute *wthread = (workerbrute *) calloc(nthreads,sizeof(workerbrute));
 
 		printf("\nBrute force attack - Starting %d threads\n",nthreads);
-		printf("\nMin length: %d\nMax length: %d\nUse -m and -M flags to modify these values.\n\n", wordlength_min, wordlength_max);
+		printf("\nMin length: %d", wordlength_min);
+		if (swl_min == NULL) printf(" [default]");
+		printf("\nMax length: %d", wordlength_max);
+		if (swl_max == NULL) printf(" [default]");
+		printf("\nUse -m and -M flags to modify these values.\n\n");
 	
 		for (i=0; i<nthreads; i++) {
 			wthread[i].id = i;
