@@ -149,7 +149,7 @@ top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 crackpkcs12_SOURCES = crackpkcs12.c
-crackpkcs12_LDADD = -lpthread -lssl -lcrypto
+crackpkcs12_LDADD = -lpthread -lcrypto
 all: all-am
 
 .SUFFIXES:
