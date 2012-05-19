@@ -33,6 +33,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <errno.h>
+#include <pthread.h>
 #include <openssl/crypto.h>
 #include <openssl/bio.h>
 #include <openssl/pkcs12.h>
@@ -52,7 +53,6 @@ typedef struct {
 	FILE* dictfile;
 	char *file2crack;
 	pthread_mutex_t *m;
-	pthread_mutexattr_t *m_attr;
 	int msginterval;
 } workerdict;
 
@@ -66,7 +66,6 @@ typedef struct {
 	char *word;
 	char *file2crack;
 	pthread_mutex_t *m;
-	pthread_mutexattr_t *m_attr;
 	int msginterval;
 } workerbrute;
 
@@ -239,9 +238,7 @@ int main(int argc, char** argv) {
 
 	pthread_t *thread = (pthread_t *) calloc(nthreads,sizeof(pthread_t));
 	int *thread_ret = (int *) calloc(nthreads, sizeof(int));
-	pthread_mutex_t mutex;
-	pthread_mutexattr_t mutex_attr;
-	pthread_mutex_init(&mutex,&mutex_attr);
+	pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 	int i;
 	if (isdict) {
 		// Opening dictionary file
@@ -258,7 +255,6 @@ int main(int argc, char** argv) {
 			wthread[i].id = i;
 			wthread[i].num_threads = nthreads;
 			wthread[i].m = &mutex;
-			wthread[i].m_attr = &mutex_attr;
 			wthread[i].dictfile = dictfile;
 			wthread[i].file2crack = infile;
 			if (verbose == 1) wthread[i].msginterval = msginterval;
@@ -289,7 +285,6 @@ int main(int argc, char** argv) {
 			wthread[i].base = base;
 			wthread[i].baselength = strlen(base);
 			wthread[i].m = &mutex;
-			wthread[i].m_attr = &mutex_attr;
 			wthread[i].file2crack = infile;
 			if (verbose == 1) wthread[i].msginterval = msginterval;
 			thread_ret[i] = pthread_create( &thread[i], NULL, work_brute, (void*) &wthread[i]);
