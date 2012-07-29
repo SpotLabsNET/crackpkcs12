@@ -46,19 +46,22 @@
 #define MINARGNUMBER 4
 #define PARTIALBASESIZE 256
 #define MAXBASESIZE 1024
+#define ELAPSEDSECONDS 1
+
+int nthreads;
+int nthreads_total;
 
 typedef struct {
 	int id;
-	int num_threads;
 	FILE* dictfile;
 	char *file2crack;
 	pthread_mutex_t *m;
-	int msginterval;
+	char quiet;
+	unsigned long long *count;
 } workerdict;
 
 typedef struct {
 	int id;
-	int num_threads;
 	char *base;
 	int baselength;
 	int wordlength_min;
@@ -66,12 +69,13 @@ typedef struct {
 	char *word;
 	char *file2crack;
 	pthread_mutex_t *m;
-	int msginterval;
+	char quiet;
+	unsigned long long *count;
 } workerbrute;
 
 void usage() {
 	printf(
-"\nUsage:\n\ncrackpkcs12 { -d <dictionary_file> |  -b [ -m <min_psw_length> ] [ -M <max_psw_length> ] [ -c <base_char_sets> ] } [ -t <num_of_threads> ] [ -v ] [ -s <message_interval> ] <file_to_crack>\n"
+"\nUsage:\n\ncrackpkcs12 { -d <dictionary_file> |  -b [ -m <min_psw_length> ] [ -M <max_psw_length> ] [ -c <base_char_sets> ] } [ -t <num_of_threads> ] [ -q ] <file_to_crack>\n"
 "\n"
 "  -b                       Uses brute force attack\n\n"
 "  -m <min_password_length> Specifies minimum length of password (implies -b)\n\n"
@@ -84,26 +88,26 @@ void usage() {
 "                           x = all previous sets\n\n"
 "  -d <dictionary_file>     Uses dictionary attack and specify dictionary file path\n\n"
 "  -t <number_of_threads>   Specifies number of threads (by default number of CPU's)\n\n"
-"  -v                       Verbose mode\n\n"
-"  -s <message_inteval>     Number of attemps between messages (implied -v) (default 100000)\n\n"
+"  -q                       Quiet mode\n\n"
 	);
 	exit(100);
 }
 
+void *print_output(void *ptr);
 char* getbase(char *scs);
 void *work_dict(void *ptr);
 void *work_brute(void *ptr);
-void generate(workerbrute *wthread, int pivot, PKCS12 *p12, long long *gcount);
-void try(workerbrute *wthread, PKCS12 *p12, long long *gcount);
+void generate(workerbrute *wthread, int pivot, PKCS12 *p12, unsigned long long *gcount);
+void try(workerbrute *wthread, PKCS12 *p12, unsigned long long *gcount);
 
 int main(int argc, char** argv) {
 
-	char *psw, *infile, *dict, *nt, *msgintstring, verbose, isdict, isbrute, *swl_min, *swl_max, *scs, *base;
+	char *psw, *infile, *dict, *nt, *msgintstring, quiet, isdict, isbrute, *swl_min, *swl_max, *scs, *base;
 	int c;
-	int msginterval = DEFAULTMSGINTERVAL;
+	unsigned long long *count;
 	int wordlength_min = MINWORDLENGTH;
 	int wordlength_max = 0;
-	verbose = 0;
+	quiet = 0;
 	psw = NULL;
 	infile = NULL;
 	dict = NULL;
@@ -116,9 +120,10 @@ int main(int argc, char** argv) {
 	swl_min = NULL;
 	swl_max = NULL;
 	base = NULL;
-	int nthreads = sysconf (_SC_NPROCESSORS_ONLN);
+	nthreads = sysconf (_SC_NPROCESSORS_ONLN);
+	nthreads_total = sysconf (_SC_NPROCESSORS_ONLN);
 
-	while ((c = getopt (argc, argv, "t:d:vbm:M:c:s:")) != -1)
+	while ((c = getopt (argc, argv, "t:d:qbm:M:c:")) != -1)
 		switch (c) {
 			case 'b':
 				isbrute = 1;
@@ -141,11 +146,10 @@ int main(int argc, char** argv) {
 			case 't':
 				nt = optarg;
 				break;
-			case 'v':
-				verbose = 1;
+			case 'q':
+				quiet = 1;
 				break;
 			case 's':
-				verbose = 1;
 				msgintstring = optarg;
 				break;
 			case '?':
@@ -170,14 +174,6 @@ int main(int argc, char** argv) {
 		fprintf(stderr,"Error: No dictionary file specified\n\n");
 		usage();
 	}
-
-	if (msgintstring != NULL) {
-		msginterval = strtol(msgintstring, NULL, 10);
-		if (errno == EINVAL)
-			usage();
-	}
-	else if (verbose == 1)
-		msginterval = DEFAULTMSGINTERVAL;
 
 	if (swl_min != NULL) {
 		wordlength_min = strtol(swl_min, NULL, 10);
@@ -230,15 +226,17 @@ int main(int argc, char** argv) {
 		nthreads = strtol(nt, NULL, 10);
 		if (errno == EINVAL)
 			usage();
-		if (verbose)
-			printf("\nStarting %d threads\n\n",nthreads);
 	}
+
+	if (!quiet)
+		nthreads_total++;
 
 	OpenSSL_add_all_algorithms();
 
-	pthread_t *thread = (pthread_t *) calloc(nthreads,sizeof(pthread_t));
-	int *thread_ret = (int *) calloc(nthreads, sizeof(int));
+	pthread_t *thread = (pthread_t *) calloc(nthreads_total,sizeof(pthread_t));
+	int *thread_ret = (int *) calloc(nthreads_total, sizeof(int));
 	pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+	count = calloc(nthreads, sizeof(unsigned long long));
 	int i;
 	if (isdict) {
 		// Opening dictionary file
@@ -249,36 +247,40 @@ int main(int argc, char** argv) {
 		}
 		workerdict *wthread = (workerdict *) calloc(nthreads,sizeof(workerdict));
 	
-		printf("\nDictionary attack - Starting %d threads\n\n",nthreads);
+		printf("\nDictionary attack - Starting %d threads\n",nthreads);
 
 		for (i=0; i<nthreads; i++) {
 			wthread[i].id = i;
-			wthread[i].num_threads = nthreads;
 			wthread[i].m = &mutex;
 			wthread[i].dictfile = dictfile;
 			wthread[i].file2crack = infile;
-			if (verbose == 1) wthread[i].msginterval = msginterval;
+			wthread[i].quiet = quiet;
+			wthread[i].count = count+i;
 			thread_ret[i] = pthread_create( &thread[i], NULL, work_dict, (void*) &wthread[i]);
 		}
-		for (i=0; i<nthreads; i++) {
+		if (!quiet)
+			pthread_create(&thread[i], NULL, print_output, (void*) count);
+		for (i=0; i<nthreads_total; i++) {
 			pthread_join(thread[i], NULL);
-			printf("\nDictionary attack - Exhausted search\n");
 		}
+
+		printf("\nDictionary attack - Exhausted search\n");
 	}
 	
 	if (isbrute) {
 		workerbrute *wthread = (workerbrute *) calloc(nthreads,sizeof(workerbrute));
 
 		printf("\nBrute force attack - Starting %d threads\n",nthreads);
+		printf("\nAlphabet: %s", base);
+		if (strchr(base,' ') != NULL) printf(" <(including blank)>");		
 		printf("\nMin length: %d", wordlength_min);
 		if (swl_min == NULL) printf(" [default]");
 		printf("\nMax length: %d", wordlength_max);
 		if (swl_max == NULL) printf(" [default]");
-		printf("\nUse -m and -M flags to modify these values.\n\n");
+		printf("\nUse -m and -M flags to modify these values.\n");
 	
 		for (i=0; i<nthreads; i++) {
 			wthread[i].id = i;
-			wthread[i].num_threads = nthreads;
 			wthread[i].wordlength_min = wordlength_min;
 			wthread[i].wordlength = wordlength_max;
 			wthread[i].word = (char *) calloc(wordlength_max, sizeof(char));
@@ -286,10 +288,13 @@ int main(int argc, char** argv) {
 			wthread[i].baselength = strlen(base);
 			wthread[i].m = &mutex;
 			wthread[i].file2crack = infile;
-			if (verbose == 1) wthread[i].msginterval = msginterval;
+			wthread[i].quiet = quiet;
+			wthread[i].count = count+i;
 			thread_ret[i] = pthread_create( &thread[i], NULL, work_brute, (void*) &wthread[i]);
 		}
-		for (i=0; i<nthreads; i++)
+		if (!quiet)
+			pthread_create(&thread[i], NULL, print_output, (void*) count);
+		for (i=0; i<nthreads_total; i++)
 			pthread_join(thread[i], NULL);
 
 		printf("\nBrute force attack - Exhausted search\n");
@@ -301,9 +306,29 @@ int main(int argc, char** argv) {
 	exit(0);
 }
 
+void *print_output(void *ptr) {
+	unsigned long long *count = (unsigned long long *) ptr;
+	unsigned long long sum;
+	unsigned long long sum_old = 0;
+	unsigned long long diff = 0;
+	int i;
+	printf("\n");
+	fflush(stdout);
+	do {
+		sleep(ELAPSEDSECONDS);
+		sum = 0;
+		for (i = 0; i < nthreads; i++)
+			sum += count[i];
+		diff = sum - sum_old;
+		if (diff != 0) printf("\rPerformance: %20llu passwords [%8llu passwords per second]", sum, diff);
+		fflush(stdout);
+		sum_old = sum;
+	} while (diff != 0);
+}
+
 char* getbase(char *scs) {
 	char alpha[PARTIALBASESIZE] = "abcdefghijklmnopqrstuvwxyz";
-	char special[PARTIALBASESIZE] = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~";
+	char special[PARTIALBASESIZE] = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~ ";
 	char capital[PARTIALBASESIZE] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 	char numeric[PARTIALBASESIZE] = "0123456789";
 	char isa = 0;
@@ -371,34 +396,25 @@ void *work_dict( void *ptr ) {
 	char line[256];
 	char found = 0;
 	char stop = 0;
-	int count = wthread->msginterval;
 	int i = 0;
 	char *p;
-	long long gcount = wthread->msginterval-1;
-
+	*(wthread->count) = 0;
 	// Work
 	while (!found && fgets(line, sizeof line,wthread->dictfile) != NULL) {
 		p = line + strlen(line) - 1;
 		if (*p == '\n') *p = '\0';
 		if ((p != line) && (*--p == '\r')) *p = '\0';
-		gcount++;
-		if ( wthread->msginterval > 0 ) {
-			if (--count <= 0) {
-				printf("Dictionary attack - Thread %d - Attemp %lld (%s)\n",wthread->id+1,gcount,line);
-				count = wthread->msginterval;
-			}
-		}
+		(*(wthread->count))++;
 		if (PKCS12_verify_mac(p12, line, -1))
 			found = 1;	
 	}
 
 	if (found) {
-		printf("*********************************************************\n");
+		printf("\n*********************************************************\n");
 		printf("Dictionary attack - Thread %d - Password found: %s\n",wthread->id+1,line);
 		printf("*********************************************************\n\n");
 		exit(0);
-	} else if (wthread->msginterval > 0)
-		printf("Dictionary attack - Thread %d - Exhausted search (%lld attemps)\n",wthread->id+1,gcount);
+	}
 
 	pthread_exit(0);
 }
@@ -427,20 +443,19 @@ void *work_brute( void *ptr ) {
 
 	int maxwordlength = wthread->wordlength;
 	int i;
-	long long gcount = 0;
+	*(wthread->count) = 0;
 	for (wthread->wordlength=wthread->wordlength_min; wthread->wordlength <= maxwordlength; wthread->wordlength++) {
-		printf("Brute force attack - Thread %d - Starting with %d characters passwords\n",wthread->id+1,wthread->wordlength);
-		for (i=wthread->id; i<wthread->baselength; i+=wthread->num_threads) {
+		for (i=wthread->id; i<wthread->baselength; i+=nthreads) {
 			wthread->word[0] = wthread->base[i];
 			if (wthread->wordlength>1)
-				generate(wthread, 1, p12, &gcount);
+				generate(wthread, 1, p12, wthread->count);
 			else
-				try(wthread,p12,&gcount);
+				try(wthread, p12, wthread->count);
 		}
 	}
 }
 
-void generate(workerbrute *wthread, int pivot, PKCS12 *p12, long long *gcount) {
+void generate(workerbrute *wthread, int pivot, PKCS12 *p12, unsigned long long *gcount) {
 	int i, j, ret;
 
 	for (i=0; i<wthread->baselength; i++) {
@@ -453,15 +468,11 @@ void generate(workerbrute *wthread, int pivot, PKCS12 *p12, long long *gcount) {
 	wthread->word[pivot] = '\0';
 }
 
-void try(workerbrute *wthread, PKCS12 *p12, long long *gcount) {
-	if (wthread->msginterval) {
-		(*gcount)++;
-		if ((*gcount) % wthread->msginterval == 0) {
-			printf("Brute force attack - Thread %d - Attemp %lld (%s)\n",wthread->id+1,(*gcount),wthread->word);
-		}
-	}
+void try(workerbrute *wthread, PKCS12 *p12, unsigned long long *gcount) {
+	(*gcount)++;
+
 	if (PKCS12_verify_mac(p12, wthread->word, -1)) {
-		printf("**********************************************************\n");
+		printf("\n**********************************************************\n");
 		printf("Brute force attack - Thread %d - Password found: %s\n",wthread->id+1,wthread->word);
 		printf("**********************************************************\n\n");
 		exit(0);
