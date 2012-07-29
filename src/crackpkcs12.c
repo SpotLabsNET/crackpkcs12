@@ -261,6 +261,7 @@ int main(int argc, char** argv) {
 			pthread_join(thread[i], NULL);
 		}
 
+		if (!quiet) sleep(ELAPSEDSECONDS);
 		printf("\nDictionary attack - Exhausted search\n");
 	}
 	
@@ -294,6 +295,7 @@ int main(int argc, char** argv) {
 		for (i=0; i<nthreads_total; i++)
 			pthread_join(thread[i], NULL);
 
+		if (!quiet) sleep(ELAPSEDSECONDS);
 		printf("\nBrute force attack - Exhausted search\n");
 	}
 
@@ -407,6 +409,7 @@ void *work_dict( void *ptr ) {
 	}
 
 	if (found) {
+		if (!quiet) sleep(ELAPSEDSECONDS);
 		printf("\n*********************************************************\n");
 		printf("Dictionary attack - Thread %d - Password found: %s\n",wthread->id+1,line);
 		printf("*********************************************************\n\n");
@@ -469,6 +472,7 @@ void try(workerbrute *wthread, PKCS12 *p12, unsigned long long *gcount) {
 	(*gcount)++;
 
 	if (PKCS12_verify_mac(p12, wthread->word, -1)) {
+		if (!quiet) sleep(ELAPSEDSECONDS);
 		printf("\n**********************************************************\n");
 		printf("Brute force attack - Thread %d - Password found: %s\n",wthread->id+1,wthread->word);
 		printf("**********************************************************\n\n");
