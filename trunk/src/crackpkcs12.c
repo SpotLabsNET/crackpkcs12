@@ -75,7 +75,7 @@ typedef struct {
 
 void usage() {
 	printf(
-"\nUsage:\n\ncrackpkcs12 { -d <dictionary_file> |  -b [ -m <min_psw_length> ] [ -M <max_psw_length> ] [ -c <base_char_sets> ] } [ -t <num_of_threads> ] [ -q ] <file_to_crack>\n"
+"\nUsage:\n\ncrackpkcs12 { -d <dictionary_file> |  -b [ -m <min_psw_length> ] [ -M <max_psw_length> ] [ -c <base_char_sets> ] } [ -t <num_of_threads> ] [ -v ] <file_to_crack>\n"
 "\n"
 "  -b                       Uses brute force attack\n\n"
 "  -m <min_password_length> Specifies minimum length of password (implies -b)\n\n"
@@ -88,7 +88,7 @@ void usage() {
 "                           x = all previous sets\n\n"
 "  -d <dictionary_file>     Uses dictionary attack and specify dictionary file path\n\n"
 "  -t <number_of_threads>   Specifies number of threads (by default number of CPU's)\n\n"
-"  -q                       Quiet mode\n\n"
+"  -v                       Verbose mode\n\n"
 	);
 	exit(100);
 }
@@ -107,7 +107,7 @@ int main(int argc, char** argv) {
 	unsigned long long *count;
 	int wordlength_min = MINWORDLENGTH;
 	int wordlength_max = 0;
-	quiet = 0;
+	quiet = 1;
 	psw = NULL;
 	infile = NULL;
 	dict = NULL;
@@ -123,7 +123,7 @@ int main(int argc, char** argv) {
 	nthreads = sysconf (_SC_NPROCESSORS_ONLN);
 	nthreads_total = sysconf (_SC_NPROCESSORS_ONLN);
 
-	while ((c = getopt (argc, argv, "t:d:qbm:M:c:")) != -1)
+	while ((c = getopt (argc, argv, "t:d:vbm:M:c:")) != -1)
 		switch (c) {
 			case 'b':
 				isbrute = 1;
@@ -146,11 +146,8 @@ int main(int argc, char** argv) {
 			case 't':
 				nt = optarg;
 				break;
-			case 'q':
-				quiet = 1;
-				break;
-			case 's':
-				msgintstring = optarg;
+			case 'v':
+				quiet = 0;
 				break;
 			case '?':
 				if (optopt == 't' || optopt == 'd' || optopt == 's') {
