@@ -409,7 +409,7 @@ void *work_dict( void *ptr ) {
 	}
 
 	if (found) {
-		if (!quiet) sleep(ELAPSEDSECONDS);
+		if (!wthread->quiet) sleep(ELAPSEDSECONDS);
 		printf("\n*********************************************************\n");
 		printf("Dictionary attack - Thread %d - Password found: %s\n",wthread->id+1,line);
 		printf("*********************************************************\n\n");
@@ -472,7 +472,7 @@ void try(workerbrute *wthread, PKCS12 *p12, unsigned long long *gcount) {
 	(*gcount)++;
 
 	if (PKCS12_verify_mac(p12, wthread->word, -1)) {
-		if (!quiet) sleep(ELAPSEDSECONDS);
+		if (!wthread->quiet) sleep(ELAPSEDSECONDS);
 		printf("\n**********************************************************\n");
 		printf("Brute force attack - Thread %d - Password found: %s\n",wthread->id+1,wthread->word);
 		printf("**********************************************************\n\n");
