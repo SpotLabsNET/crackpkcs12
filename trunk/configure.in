@@ -1,7 +1,7 @@
 AC_INIT(src/crackpkcs12.c)
 
 PACKAGE=crackpkcs12
-VERSION=0.2.8
+VERSION=0.2.9
 EMAIL=aedelatorre@gmail.com
 
 AM_INIT_AUTOMAKE($PACKAGE, $VERSION, $EMAIL)

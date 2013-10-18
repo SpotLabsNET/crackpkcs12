@@ -47,6 +47,7 @@
 #define PARTIALBASESIZE 256
 #define MAXBASESIZE 1024
 #define ELAPSEDSECONDS 1
+#define BASELENGTH 256
 
 int nthreads;
 int nthreads_total;
@@ -75,17 +76,18 @@ typedef struct {
 
 void usage() {
 	printf(
-"\nUsage:\n\ncrackpkcs12 { -d <dictionary_file> |  -b [ -m <min_psw_length> ] [ -M <max_psw_length> ] [ -c <base_char_sets> ] } [ -t <num_of_threads> ] [ -v ] <file_to_crack>\n"
+"\nUsage:\n\ncrackpkcs12 { -d <dictionary_file> |  -b [ -m <min_psw_length> ] [ -M <max_psw_length> ] [ -c <base_char_sets> | -i <specific_char_sets> ] } [ -t <num_of_threads> ] [ -v ] <file_to_crack>\n"
 "\n"
 "  -b                       Uses brute force attack\n\n"
 "  -m <min_password_length> Specifies minimum length of password (implies -b)\n\n"
-"  -M <max_password_length> Specifies minimum length of password (implies -b)\n\n"
+"  -M <max_password_length> Specifies maximum length of password (implies -b)\n\n"
 "  -c <base_char_sets>      Specifies characters sets (one or more than one) and order to conform passwords (requires -b, -m or -M)\n"
 "                           a = letters (abcdefghijklmnopqrstuvwxyz)\n"
 "                           A = capital letters (ABCDEFGHIJKLMNOPQRSTUVWXYZ)\n"
 "                           n = digits (0123456789)\n"
-"                           s = special characters (!\"#$%%&'()*+,-./:;<=>?@[\\]^_`{|}~)\n"
+"                           s = special characters (!\"#$%%&'()*+,-./:;<=>?@[\\]^_`{|}~) (including blank)\n"
 "                           x = all previous sets\n\n"
+"  -s <specific_char_set>   Uses <specific_char_set> to conform passwords (requires -b, -m or -M)\n\n"
 "  -d <dictionary_file>     Uses dictionary attack and specify dictionary file path\n\n"
 "  -t <number_of_threads>   Specifies number of threads (by default number of CPU's)\n\n"
 "  -v                       Verbose mode\n\n"
@@ -102,7 +104,7 @@ void try(workerbrute *wthread, PKCS12 *p12, unsigned long long *gcount);
 
 int main(int argc, char** argv) {
 
-	char *psw, *infile, *dict, *nt, *msgintstring, quiet, isdict, isbrute, *swl_min, *swl_max, *scs, *base;
+	char *psw, *infile, *dict, *nt, *msgintstring, quiet, isdict, isbrute, *swl_min, *swl_max, *scs, *ics, *base;
 	int c;
 	unsigned long long *count;
 	int wordlength_min = MINWORDLENGTH;
@@ -114,6 +116,7 @@ int main(int argc, char** argv) {
 	nt = NULL;
 	msgintstring = NULL;
 	scs = NULL;
+	ics = NULL;
 	nt = NULL;
 	isdict = 0;
 	isbrute = 0;
@@ -123,7 +126,7 @@ int main(int argc, char** argv) {
 	nthreads = sysconf (_SC_NPROCESSORS_ONLN);
 	nthreads_total = sysconf (_SC_NPROCESSORS_ONLN);
 
-	while ((c = getopt (argc, argv, "t:d:vbm:M:c:")) != -1)
+	while ((c = getopt (argc, argv, "t:d:s:vbm:M:c:")) != -1)
 		switch (c) {
 			case 'b':
 				isbrute = 1;
@@ -138,6 +141,9 @@ int main(int argc, char** argv) {
 				break;
 			case 'c':
 				scs = optarg;				
+				break;
+			case 's':
+				ics = optarg;				
 				break;
 			case 'd':
 				isdict = 1;
@@ -162,6 +168,12 @@ int main(int argc, char** argv) {
 		usage();
 	}
 
+	if (ics != NULL && scs != NULL) {
+		fprintf(stderr,"-c and -s are not compatible flags\n\n");
+		usage();
+	}
+	
+	
 	if (optind != argc-1)
 		usage();
 	else
@@ -208,14 +220,19 @@ int main(int argc, char** argv) {
 	}
 
 	if (isbrute) {
-		if (scs == NULL)
-			scs = "x"; // by default all character sets
-		base = getbase(scs);
-		if (base == NULL)
-			usage();
+		if (ics != NULL) {
+			base = ics;
+		}
+		else {
+			if (scs == NULL)
+				scs = "x"; // by default all character sets
+			base = getbase(scs);
+			if (base == NULL)
+				usage();
+		}
 	}
-	else if (scs != NULL) {
-		printf("-c option requires -b option\n");
+	else if (scs != NULL || ics != NULL) {
+		printf("-c and -s flags require -b, -m or -M flags\n");
 		usage();
 	}
 
